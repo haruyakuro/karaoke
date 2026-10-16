@@ -44,6 +44,7 @@ container.appLimitRepository
 > `ui`、`notification`、`usage` はまだ存在しない。**自分の担当のフォルダは、自分で最初に作る。**
 > フォルダの場所とファイルの `package` 行は、必ず一致させる。
 
+
 ### 担当別の置き場所
 
 | 担当 | 作る場所 | 作るファイルの例 |
