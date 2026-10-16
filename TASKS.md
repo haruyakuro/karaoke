@@ -30,6 +30,64 @@ container.appLimitRepository
 
 ---
 
+## ファイルをどこに作るか
+
+### フォルダ(パッケージ)の作り方
+
+1. 左のツリーで `com.example.studyreward` を右クリックする
+   (**`(androidTest)` や `(test)` と付いていないほう**を選ぶ)
+2. **New → Package** を選ぶ
+3. 名前を入力してEnterを押す(例: `ui.task` と書くと、`ui` の中に `task` ができる)
+4. 作ったパッケージを右クリック → **New → Kotlin Class/File** → 名前を入力 → **File** を選ぶ
+5. 新しいファイルの先頭に `package ...` の行が入っていることを確認する
+
+> `ui`、`notification`、`usage` はまだ存在しない。**自分の担当のフォルダは、自分で最初に作る。**
+> フォルダの場所とファイルの `package` 行は、必ず一致させる。
+
+### 担当別の置き場所
+
+| 担当 | 作る場所 | 作るファイルの例 |
+|---|---|---|
+| **A** | `ui/home` | `HomeScreen.kt` |
+| | `ui/task` | `TaskListScreen.kt`、`TaskFormScreen.kt`、`TaskViewModel.kt` |
+| | `ui/reward` | `RewardScreen.kt`、`RewardViewModel.kt` |
+| | `ui/schedule` | `ScheduleScreen.kt`、`ScheduleViewModel.kt` |
+| | `ui`(直下) | `AppNavigation.kt`(画面遷移) |
+| | `MainActivity.kt` | 画面遷移を呼び出す。**Aだけが編集する** |
+| **B** | `data/`、`domain/` | 作成済み。新しい関数が必要になったときだけ追加 |
+| **C** | `notification` | `ReminderScheduler.kt`、`ReminderWorker.kt`(WorkManagerの処理) |
+| **D** | `usage` | `UsageLimitManager.kt`、使用状況を取得するクラス |
+
+### 完成後のフォルダ構成(全体)
+
+```
+com.example.studyreward
+├── MainActivity.kt          A
+├── AppContainer.kt          B
+├── StudyRewardApplication.kt B
+├── data/                    B(作成済み)
+├── domain/                  B(作成済み)
+├── ui/                      A
+│   ├── AppNavigation.kt
+│   ├── home/
+│   ├── task/
+│   ├── reward/
+│   └── schedule/
+├── notification/            C
+└── usage/                   D
+```
+
+### ルール
+
+- **自分の担当のフォルダの中だけ**に、ファイルを作る。
+- 他の担当のフォルダにファイルを足したくなったら、先にその担当に相談する(競合を防ぐため)。
+- ほかの人も使うクラス(共通のデータ型など)は、自分で作らず、Bに相談する。
+- `AndroidManifest.xml` を変更する必要がある場合(通知の権限、使用状況の権限など)は、
+  **C・Dが自分の分だけ追加してよい**。変更箇所が重ならないよう、PRで内容を伝える。
+- ファイル名・クラス名は、SPEC.mdに書かれているものを使う。
+
+---
+
 ## A:画面・UI担当
 
 **ブランチ**: `feature/ui`(細かく分けるなら `feature/task-form` など)
