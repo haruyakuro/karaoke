@@ -20,4 +20,20 @@ interface AppLimitDao {
 
     @Query("UPDATE app_limits SET bonusMinutes = bonusMinutes + :minutes WHERE packageName = :packageName")
     suspend fun addBonusMinutes(packageName: String, minutes: Int)
+
+    @Query("SELECT * FROM app_limits")
+    suspend fun getAll(): List<AppLimitEntity>
+
+    @Query("UPDATE app_limits SET usedSecondsToday = :seconds WHERE packageName = :packageName")
+    suspend fun setUsedSeconds(packageName: String, seconds: Long)
+
+    @Query("UPDATE app_limits SET usedSecondsToday = usedSecondsToday + :seconds WHERE packageName = :packageName")
+    suspend fun addUsedSeconds(packageName: String, seconds: Long)
+
+    @Query(
+        "UPDATE app_limits SET usedSecondsToday = 0, usageDateEpochDay = :epochDay, " +
+                "bonusMinutes = :bonusMinutes WHERE packageName = :packageName"
+    )
+    suspend fun resetForNewDay(packageName: String, epochDay: Long, bonusMinutes: Int)
+
 }

@@ -20,6 +20,6 @@ class AppContainer(context: Context) {
         ScheduleRepository(db.classScheduleDao())
     }
     val appLimitRepository: AppLimitRepository by lazy {
-        AppLimitRepository(db.appLimitDao())
+        AppLimitRepository(db, db.appLimitDao())
     }
 }
