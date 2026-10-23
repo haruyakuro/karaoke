@@ -98,17 +98,17 @@ com.example.studyreward
 
 ### 今週(第1週)
 
-- [ ] ホーム画面の見た目を作る(ポイント残高、課題の件数など。データは仮でよい)
-- [ ] 画面遷移の仕組み(`navigation-compose`)を入れて、ホーム → 課題一覧 → 課題登録を移動できるようにする
-- [ ] 課題登録画面の入力欄を作る(課題名、締切、難易度1〜3)
+- [×] ホーム画面の見た目を作る(ポイント残高、課題の件数など。データは仮でよい)
+- [×] 画面遷移の仕組み(`navigation-compose`)を入れて、ホーム → 課題一覧 → 課題登録を移動できるようにする
+- [×] 課題登録画面の入力欄を作る(課題名、締切、難易度1〜3)
 
 ### 第2週
 
-- [ ] 課題一覧画面: `taskRepository.getAllTasks()` で表示する
-- [ ] 課題登録: `taskRepository.addTask(...)` で保存する
-- [ ] 課題の完了ボタン: `taskRepository.completeTask(...)` を呼び、`CompleteTaskResult` の結果(獲得ポイント / 完了済み / 見つからない)に応じて表示を変える
-- [ ] ポイント残高の表示: `rewardRepository.getPointsBalance()`
-- [ ] 入力チェック(課題名が空、難易度が範囲外など)
+- [×] 課題一覧画面: `taskRepository.getAllTasks()` で表示する
+- [×] 課題登録: `taskRepository.addTask(...)` で保存する
+- [×] 課題の完了ボタン: `taskRepository.completeTask(...)` を呼び、`CompleteTaskResult` の結果(獲得ポイント / 完了済み / 見つからない)に応じて表示を変える
+- [×] ポイント残高の表示: `rewardRepository.getPointsBalance()`
+- [×] 入力チェック(課題名が空、難易度が範囲外など)
 
 ### 第3週
 
