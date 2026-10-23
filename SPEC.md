@@ -196,7 +196,26 @@ sealed interface ExchangeResult {
 | `suspend registerApp(packageName, dailyLimitMinutes, todayEpochDay)` | `String`, `Int`, `Long`(省略可) | `Unit` | 対象アプリを登録。登録済みなら基本上限のみ更新 |
 
 - `packageName` が空、`dailyLimitMinutes` が0以下のときは `IllegalArgumentException`。
-- 使用時間の加算・日付リセット用の関数は、D担当の着手時に相談して追加する。
+**使用時間の更新用(D担当が使う)**
+
+| 関数 | 引数 | 戻り値 | 内容 |
+|---|---|---|---|
+| `suspend setUsedSeconds(packageName, usedSeconds, todayEpochDay)` | `String`, `Long`, `Long`(省略可) | `Boolean` | 当日の使用秒数を**その値に置き換える**(`UsageStatsManager` の累計値向け) |
+| `suspend addUsedSeconds(packageName, seconds, todayEpochDay)` | `String`, `Long`, `Long`(省略可) | `Boolean` | 当日の使用秒数に**加算する**(Accessibilityなど、増分を数える場合向け) |
+| `suspend resetUsageForNewDay(packageName, epochDay)` | `String`, `Long` | `Boolean` | 日付が変わっていれば、使用秒数を0にする |
+| `suspend resetAllIfNewDay(todayEpochDay)` | `Long`(省略可) | `Unit` | 登録済みの全アプリに対して、上の処理を行う(監視開始時などに呼ぶ) |
+
+- 戻り値の `Boolean` は、**アプリが登録済みなら `true`、未登録なら `false`**。
+- `setUsedSeconds` と `addUsedSeconds` は、**日付が変わっていれば自動で先にリセット**する。呼ぶ側でリセットを意識しなくてよい。
+- **同じ期間に `set` と `add` を混ぜない。** 二重に数えてしまう。1つのアプリについて、どちらか一方の方式に決める。
+- `todayEpochDay` は `LocalDate.now().toEpochDay()`(省略すると自動で入る)。
+
+**追加時間(`bonusMinutes`)の日またぎのルール**
+
+- 日付が変わるとき、**使い切っていない追加時間だけを翌日に持ち越す**。使った分は消える。
+- 基本上限を先に使い、超えた分から追加時間を消費する、として計算する。
+- 例: 基本30分、追加10分、前日に35分使用 → 追加時間は5分を消費、**5分を持ち越す**。
+- 例: 前日に20分しか使わなかった → 追加10分は**そのまま持ち越す**。
 
 ### ScheduleRepository(Bが実装、Cが利用)
 

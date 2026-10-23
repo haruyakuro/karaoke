@@ -6,7 +6,6 @@
 
 関数の名前・引数・戻り値は **SPEC.md** を見る。Gitのルールは **CONTRIBUTING.md** を見る。
 
-
 ---
 
 
