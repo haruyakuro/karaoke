@@ -12,6 +12,9 @@ interface AppLimitDao {
     @Query("SELECT * FROM app_limits")
     fun observeAll(): Flow<List<AppLimitEntity>>
 
+    @Query("SELECT * FROM app_limits")
+    suspend fun getAll(): List<AppLimitEntity>
+
     @Query("SELECT * FROM app_limits WHERE packageName = :packageName")
     suspend fun getByPackage(packageName: String): AppLimitEntity?
 
@@ -20,9 +23,6 @@ interface AppLimitDao {
 
     @Query("UPDATE app_limits SET bonusMinutes = bonusMinutes + :minutes WHERE packageName = :packageName")
     suspend fun addBonusMinutes(packageName: String, minutes: Int)
-
-    @Query("SELECT * FROM app_limits")
-    suspend fun getAll(): List<AppLimitEntity>
 
     @Query("UPDATE app_limits SET usedSecondsToday = :seconds WHERE packageName = :packageName")
     suspend fun setUsedSeconds(packageName: String, seconds: Long)
@@ -36,4 +36,6 @@ interface AppLimitDao {
     )
     suspend fun resetForNewDay(packageName: String, epochDay: Long, bonusMinutes: Int)
 
+    @Query("UPDATE app_limits SET isEnabled = :enabled WHERE packageName = :packageName")
+    suspend fun setEnabled(packageName: String, enabled: Boolean)
 }
