@@ -130,16 +130,16 @@ DB作成時にid=1のレコードを自動作成する。
 
 ```kotlin
 sealed interface CompleteTaskResult {
-    data class Success(val pointsAwarded: Int) : CompleteTaskResult
-    data object AlreadyCompleted : CompleteTaskResult
-    data object NotFound : CompleteTaskResult
+  data class Success(val pointsAwarded: Int) : CompleteTaskResult
+  data object AlreadyCompleted : CompleteTaskResult
+  data object NotFound : CompleteTaskResult
 }
 
 sealed interface ExchangeResult {
-    data class Success(val minutesAdded: Int) : ExchangeResult
-    data object InsufficientPoints : ExchangeResult
-    data object AppNotFound : ExchangeResult
-    data object InvalidAmount : ExchangeResult
+  data class Success(val minutesAdded: Int) : ExchangeResult
+  data object InsufficientPoints : ExchangeResult
+  data object AppNotFound : ExchangeResult
+  data object InvalidAmount : ExchangeResult
 }
 ```
 
@@ -196,7 +196,7 @@ sealed interface ExchangeResult {
 | `suspend registerApp(packageName, dailyLimitMinutes, todayEpochDay)` | `String`, `Int`, `Long`(省略可) | `Unit` | 対象アプリを登録。登録済みなら基本上限のみ更新 |
 
 - `packageName` が空、`dailyLimitMinutes` が0以下のときは `IllegalArgumentException`。
-**使用時間の更新用(D担当が使う)**
+  **使用時間の更新用(D担当が使う)**
 
 | 関数 | 引数 | 戻り値 | 内容 |
 |---|---|---|---|
@@ -204,6 +204,7 @@ sealed interface ExchangeResult {
 | `suspend addUsedSeconds(packageName, seconds, todayEpochDay)` | `String`, `Long`, `Long`(省略可) | `Boolean` | 当日の使用秒数に**加算する**(Accessibilityなど、増分を数える場合向け) |
 | `suspend resetUsageForNewDay(packageName, epochDay)` | `String`, `Long` | `Boolean` | 日付が変わっていれば、使用秒数を0にする |
 | `suspend resetAllIfNewDay(todayEpochDay)` | `Long`(省略可) | `Unit` | 登録済みの全アプリに対して、上の処理を行う(監視開始時などに呼ぶ) |
+| `suspend setEnabled(packageName, enabled)` | `String`, `Boolean` | `Boolean` | 制限のON/OFFを切り替える。未登録なら `false` |
 
 - 戻り値の `Boolean` は、**アプリが登録済みなら `true`、未登録なら `false`**。
 - `setUsedSeconds` と `addUsedSeconds` は、**日付が変わっていれば自動で先にリセット**する。呼ぶ側でリセットを意識しなくてよい。
@@ -241,7 +242,25 @@ sealed interface ExchangeResult {
 - 課題の削除・締切変更時は、以前の通知を取り消して再設定する。
 
 ### UsageLimitManager(D)
-`getRemainingUsageSeconds(packageName)` / `recordUsageSeconds(packageName, seconds)` / `isLimitExceeded(packageName)` / `startMonitoring()` / `stopMonitoring()`
+| 関数 | 引数 | 戻り値 | 内容 |
+|---|---|---|---|
+| `getRemainingUsageSeconds(packageName)` | `String` | **`Long?`** | 残り秒数。**制限対象外なら `null`**。上限を超えていれば `0`(負の値は返さない) |
+| `isLimitTarget(packageName)` | `String` | `Boolean` | 制限の対象か(**登録済み かつ `isEnabled = true`**) |
+| `isLimitExceeded(packageName)` | `String` | `Boolean` | 上限超過か。**対象外なら `false`** |
+| `recordUsageSeconds(packageName, seconds)` | `String`, `Long` | `Unit` | 使用時間を記録する |
+| `startMonitoring()` | なし | `Unit` | 監視を開始する |
+| `stopMonitoring()` | なし | `Unit` | 監視を停止する |
+
+**制限の対象の決め方**
+
+| 状態 | 制限するか | `getRemainingUsageSeconds` | `isLimitExceeded` |
+|---|---|---|---|
+| 未登録 | しない | `null` | `false` |
+| 登録済み・`isEnabled = false` | しない | `null` | `false` |
+| 登録済み・`isEnabled = true` | する | 残り秒数(0以上) | 残り0なら `true` |
+
+- 画面(A)は、`null` のとき「制限なし」と表示する。
+- 残り秒数を計算する前に、日付が変わっていないか確認する(`appLimitRepository.resetUsageForNewDay(packageName)` を先に呼ぶ)。
 
 - 実装中に関数が必要になった場合は、Dだけで決めず、関係する担当とこのファイルを更新してから進める。
 

@@ -15,7 +15,6 @@ class AppLimitRepository(
         /**
          * 日付が変わるときに翌日へ持ち越す追加時間(分)を計算する。
          * 基本上限を先に使い、超えた分から追加時間を消費したとみなす。
-         * 「持ち越さず0にする」場合は、この関数を常に 0 を返すようにする。
          */
         fun carriedBonusMinutes(limit: AppLimitEntity): Int {
             val baseSeconds = limit.dailyLimitMinutes * 60L
@@ -94,6 +93,14 @@ class AppLimitRepository(
             appLimitDao.getAll().forEach { resetIfNewDay(it, todayEpochDay) }
         }
     }
+
+    /** 制限のON/OFFを切り替える。未登録なら false。 */
+    suspend fun setEnabled(packageName: String, enabled: Boolean): Boolean =
+        db.withTransaction {
+            appLimitDao.getByPackage(packageName) ?: return@withTransaction false
+            appLimitDao.setEnabled(packageName, enabled)
+            true
+        }
 
     private suspend fun resetIfNewDay(limit: AppLimitEntity, todayEpochDay: Long) {
         if (limit.usageDateEpochDay == todayEpochDay) return
