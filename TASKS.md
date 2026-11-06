@@ -139,6 +139,7 @@ com.example.studyreward
 
 ### これから
 
+
 - [ ] README.md・CONTRIBUTING.md・TASKS.md を `main` に入れる
 - [ ] 3人の進捗を確認する(ビルドできたか、ブランチを作ったか)
 - [ ] **Dの検証結果を聞く**(使用時間の計測・制限ができそうか)

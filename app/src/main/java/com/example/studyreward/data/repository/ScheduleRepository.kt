@@ -4,9 +4,11 @@ import com.example.studyreward.data.dao.ClassScheduleDao
 import com.example.studyreward.data.entity.ClassScheduleEntity
 import com.example.studyreward.domain.schedule.FreePeriod
 import kotlinx.coroutines.flow.Flow
+import com.example.studyreward.notification.ReminderScheduler
 
 class ScheduleRepository(
-    private val classScheduleDao: ClassScheduleDao
+    private val classScheduleDao: ClassScheduleDao,
+    private val reminderScheduler: ReminderScheduler
 ) {
     companion object {
         private const val MIN_FREE_MINUTES = 30
@@ -26,11 +28,26 @@ class ScheduleRepository(
             schedule.startMinutes < it.endMinutes && it.startMinutes < schedule.endMinutes
         }
         require(!overlaps) { "ほかの授業と時間が重なっています" }
-        return classScheduleDao.insert(schedule)
+        val scheduleId = classScheduleDao.insert(schedule)
+        refreshFreePeriodReminders(schedule.dayOfWeek)
+        return scheduleId
     }
 
     suspend fun deleteSchedule(scheduleId: Long) {
+        val schedule = classScheduleDao.getById(scheduleId)
+            ?: return
+
         classScheduleDao.deleteById(scheduleId)
+
+        refreshFreePeriodReminders(schedule.dayOfWeek)
+    }
+    private suspend fun refreshFreePeriodReminders(dayOfWeek: Int) {
+        reminderScheduler.cancelFreePeriodRemindersForDay(dayOfWeek)
+        val periods = getFreePeriods(dayOfWeek)
+
+        periods.forEach { period ->
+            reminderScheduler.scheduleFreePeriodReminder(period)
+        }
     }
 
     suspend fun getFreePeriods(dayOfWeek: Int): List<FreePeriod> {
