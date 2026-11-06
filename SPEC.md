@@ -93,6 +93,18 @@ Composeでは `val context = LocalContext.current` から `context.applicationCo
 | `startMinutes` | `Int` | 開始時刻(0時からの分。9:10 → 550) |
 | `endMinutes` | `Int` | 終了時刻(同上) |
 
+### DateScheduleEntity(日付を指定した予定。祝日・特定日用)
+
+| 項目 | 型 | 内容 |
+|---|---|---|
+| `id` | `Long` | 自動採番 |
+| `title` | `String` | 予定名 |
+| `dateEpochDay` | `Long` | 日付(`LocalDate.toEpochDay()`) |
+| `startMinutes` | `Int` | 開始時刻(0時からの分) |
+| `endMinutes` | `Int` | 終了時刻(同上) |
+
+毎週同じ予定は `ClassScheduleEntity`、**その日だけの予定**は `DateScheduleEntity` を使う。
+
 ### RewardSettingsEntity(ポイント残高)
 
 | 項目 | 型 | 内容 |
@@ -123,6 +135,7 @@ DB作成時にid=1のレコードを自動作成する。
 | `dayOfWeek` | `Int` |
 | `startMinutes` | `Int` |
 | `endMinutes` | `Int` |
+| `dateEpochDay` | `Long?`(省略可。曜日ベースの空きコマは `null`、日付ベースは日付が入る) |
 
 ---
 
@@ -130,16 +143,16 @@ DB作成時にid=1のレコードを自動作成する。
 
 ```kotlin
 sealed interface CompleteTaskResult {
-  data class Success(val pointsAwarded: Int) : CompleteTaskResult
-  data object AlreadyCompleted : CompleteTaskResult
-  data object NotFound : CompleteTaskResult
+    data class Success(val pointsAwarded: Int) : CompleteTaskResult
+    data object AlreadyCompleted : CompleteTaskResult
+    data object NotFound : CompleteTaskResult
 }
 
 sealed interface ExchangeResult {
-  data class Success(val minutesAdded: Int) : ExchangeResult
-  data object InsufficientPoints : ExchangeResult
-  data object AppNotFound : ExchangeResult
-  data object InvalidAmount : ExchangeResult
+    data class Success(val minutesAdded: Int) : ExchangeResult
+    data object InsufficientPoints : ExchangeResult
+    data object AppNotFound : ExchangeResult
+    data object InvalidAmount : ExchangeResult
 }
 ```
 
@@ -230,6 +243,22 @@ sealed interface ExchangeResult {
 - `addSchedule` は、曜日・時刻が不正、または他の授業と時間が重なる場合に **`IllegalArgumentException`** を投げる。
   画面側は `try/catch` して `e.message` をエラー表示に使える。
 - 空きコマ: 同じ曜日の授業の間が**30分以上**のもの。最初の授業より前・最後の授業より後は含めない。
+
+### DateScheduleRepository(Bが実装、Cが利用)
+
+| 関数 | 引数 | 戻り値 | 内容 |
+|---|---|---|---|
+| `getAllDateSchedules()` | なし | `Flow<List<DateScheduleEntity>>` | 日付指定の予定一覧を監視 |
+| `suspend addDateSchedule(schedule)` | `DateScheduleEntity` | `Long` | 日付指定の予定を登録 |
+| `suspend deleteDateSchedule(id)` | `Long` | `Unit` | 削除 |
+| `suspend getFreePeriodsForDate(dateEpochDay)` | `Long` | `List<FreePeriod>` | **その日付の空きコマ**(毎週の予定と日付指定の予定を合わせて計算) |
+
+- `addDateSchedule` は、時刻が不正、または**同じ日の他の予定(毎週の予定も含む)と重なる**場合に `IllegalArgumentException`。
+- 空きコマの計算ルール(30分以上の空きだけを返す)
+  - **休日モード**(土日、`HolidayCalendar` に登録した祝日): **8:00〜22:00** の範囲で、予定のない時間帯を返す(最初の予定の前、最後の予定の後も含む)
+  - **平日**: 従来どおり、予定と予定の**間**だけを返す
+- 返す `FreePeriod` には `dateEpochDay` が入る。通知は日付ごとに設定する。
+- 祝日は `HolidayCalendar`(`domain/schedule/`)の一覧に、日付を追加して管理する。
 
 ---
 
