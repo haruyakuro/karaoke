@@ -40,7 +40,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "study_reward.db"
-                ).addCallback(object : Callback() {
+                ).fallbackToDestructiveMigration()
+                .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         db.execSQL("INSERT INTO reward_settings (id, pointsBalance) VALUES (1, 0)")
