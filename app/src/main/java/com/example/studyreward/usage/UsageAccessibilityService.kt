@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import com.example.studyreward.StudyRewardApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,7 +15,6 @@ class UsageAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "UsageAccessibility"
-        private const val YOUTUBE_PACKAGE = "com.google.android.youtube"
     }
 
     private val serviceScope =
@@ -35,11 +35,6 @@ class UsageAccessibilityService : AccessibilityService() {
         event: AccessibilityEvent?
     ) {
 
-        Log.d(
-            TAG,
-            "Event received : ${event?.eventType}"
-        )
-
         if (
             event?.eventType !=
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
@@ -56,40 +51,68 @@ class UsageAccessibilityService : AccessibilityService() {
             "Foreground : $packageName"
         )
 
-        if (packageName != YOUTUBE_PACKAGE) {
-            return
-        }
-
-        Log.d(
-            TAG,
-            "YouTube detected"
-        )
-
-        val usageLimitManager =
-            UsageLimitManager(applicationContext)
-
         serviceScope.launch {
 
-            val exceeded =
-                usageLimitManager.isLimitExceeded(
-                    YOUTUBE_PACKAGE
+            val container =
+                (
+                        applicationContext
+                                as StudyRewardApplication
+                        ).container
+
+            val limit =
+                container
+                    .appLimitRepository
+                    .getLimit(packageName)
+
+            // 登録されていないアプリは何もしない
+            if (limit == null) {
+                return@launch
+            }
+
+            // 無効になっているアプリも何もしない
+            if (!limit.isEnabled) {
+                Log.d(
+                    TAG,
+                    "Limit disabled : $packageName"
                 )
+                return@launch
+            }
 
             Log.d(
                 TAG,
-                "Exceeded = $exceeded"
+                "Limited app detected : $packageName"
             )
 
-            if (exceeded) {
+            val usageLimitManager =
+                UsageLimitManager(
+                    applicationContext
+                )
+
+            val remainingSeconds =
+                usageLimitManager
+                    .getRemainingUsageSeconds(
+                        packageName
+                    )
+
+            Log.d(
+                TAG,
+                "Remaining seconds : $remainingSeconds"
+            )
+
+            if (remainingSeconds <= 0L) {
 
                 Log.d(
                     TAG,
-                    "Go Home"
+                    "Limit exceeded : $packageName"
                 )
 
                 val homeIntent =
-                    Intent(Intent.ACTION_MAIN).apply {
-                        addCategory(Intent.CATEGORY_HOME)
+                    Intent(
+                        Intent.ACTION_MAIN
+                    ).apply {
+                        addCategory(
+                            Intent.CATEGORY_HOME
+                        )
                         addFlags(
                             Intent.FLAG_ACTIVITY_NEW_TASK
                         )
@@ -101,6 +124,7 @@ class UsageAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+
         Log.d(
             TAG,
             "AccessibilityService interrupted"
@@ -108,7 +132,9 @@ class UsageAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+
         serviceScope.cancel()
+
         super.onDestroy()
     }
 }

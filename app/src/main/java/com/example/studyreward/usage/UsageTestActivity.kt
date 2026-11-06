@@ -32,7 +32,7 @@ class UsageTestActivity : ComponentActivity() {
         }
 
         val registerButton = Button(this).apply {
-            text = "YouTubeを5分制限で登録"
+            text = "YouTubeを1分制限で登録"
 
             setOnClickListener {
                 registerYouTube()
@@ -80,8 +80,10 @@ class UsageTestActivity : ComponentActivity() {
     private fun registerYouTube() {
 
         val container =
-            (applicationContext as StudyRewardApplication)
-                .container
+            (
+                    applicationContext
+                            as StudyRewardApplication
+                    ).container
 
         lifecycleScope.launch {
 
@@ -89,11 +91,11 @@ class UsageTestActivity : ComponentActivity() {
                 .appLimitRepository
                 .registerApp(
                     packageName = youtubePackage,
-                    dailyLimitMinutes = 5
+                    dailyLimitMinutes = 1
                 )
 
             usageText.text =
-                "YouTubeを5分制限で登録しました"
+                "YouTubeを1分制限で登録しました"
         }
     }
 
@@ -107,30 +109,25 @@ class UsageTestActivity : ComponentActivity() {
         val usageMinutes =
             usageMillis / 1000 / 60
 
-        val usageSeconds =
-            usageMillis / 1000 % 60
-
         lifecycleScope.launch {
 
-            val remainingSeconds =
-                usageLimitManager
-                    .getRemainingUsageSeconds(
-                        youtubePackage
-                    )
-
             val exceeded =
-                usageLimitManager
-                    .isLimitExceeded(
-                        youtubePackage
-                    )
+                usageLimitManager.isLimitExceeded(
+                    youtubePackage
+                )
+
+            val remainingSeconds =
+                usageLimitManager.getRemainingUsageSeconds(
+                    youtubePackage
+                )
 
             usageText.text =
                 if (exceeded) {
-                    "今日のYouTube使用時間：${usageMinutes}分${usageSeconds}秒\n" +
+                    "今日のYouTube使用時間：${usageMinutes}分\n" +
                             "残り時間：0秒\n" +
                             "制限時間を超えています！"
                 } else {
-                    "今日のYouTube使用時間：${usageMinutes}分${usageSeconds}秒\n" +
+                    "今日のYouTube使用時間：${usageMinutes}分\n" +
                             "残り時間：${remainingSeconds}秒\n" +
                             "まだ制限時間内です"
                 }
@@ -140,9 +137,8 @@ class UsageTestActivity : ComponentActivity() {
     private fun checkForegroundApp() {
 
         val usageStatsManager =
-            getSystemService(
-                USAGE_STATS_SERVICE
-            ) as UsageStatsManager
+            getSystemService(USAGE_STATS_SERVICE)
+                    as UsageStatsManager
 
         val endTime =
             System.currentTimeMillis()
@@ -175,6 +171,7 @@ class UsageTestActivity : ComponentActivity() {
                     event.timeStamp >
                     latestTimeStamp
                 ) {
+
                     latestTimeStamp =
                         event.timeStamp
 
@@ -195,13 +192,8 @@ class UsageTestActivity : ComponentActivity() {
     private fun goToHome() {
 
         val homeIntent =
-            Intent(
-                Intent.ACTION_MAIN
-            ).apply {
-                addCategory(
-                    Intent.CATEGORY_HOME
-                )
-
+            Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
                 addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK
                 )
