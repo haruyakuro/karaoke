@@ -17,6 +17,9 @@ interface ClassScheduleDao {
     @Insert
     suspend fun insert(schedule: ClassScheduleEntity): Long
 
+    @Query("SELECT * FROM class_schedules WHERE id = :id")
+    suspend fun getById(id: Long): ClassScheduleEntity?
+
     @Query("DELETE FROM class_schedules WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
