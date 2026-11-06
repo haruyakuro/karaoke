@@ -4,6 +4,10 @@
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- 他アプリの使用時間を取得するための権限 -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS" />
+
     <application
         android:name=".StudyRewardApplication"
         android:allowBackup="true"
@@ -14,18 +18,46 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.StudyReward">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.StudyReward"
             android:windowSoftInputMode="adjustResize">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
+
+        <!-- 使用制限の動作確認用。一時的に登録 -->
+        <activity
+            android:name=".usage.UsageTestActivity"
+            android:exported="true" />
+
+        <!--
+            アプリの使用制限を行うためのAccessibilityService。
+            AccessibilityServiceの設定画面からユーザーが有効化する。
+        -->
+        <service
+            android:name=".usage.UsageAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+
+        </service>
+
     </application>
 
 </manifest>
