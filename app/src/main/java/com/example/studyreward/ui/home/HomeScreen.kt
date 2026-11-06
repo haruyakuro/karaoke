@@ -1,94 +1,215 @@
 package com.example.studyreward.ui.home
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.studyreward.ui.common.Neon
+import com.example.studyreward.ui.common.NeonButton
+import com.example.studyreward.ui.common.NeonPanel
+import com.example.studyreward.ui.common.SectionLabel
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val deadlineFormatter = DateTimeFormatter.ofPattern("M/d(E) HH:mm", Locale.JAPAN)
+
 @Composable
 fun HomeScreen(
     pointsBalance: Int,
     pendingCount: Int,
     dueSoonCount: Int,
     doneCount: Int,
+    nextTaskTitle: String?,
+    nextDeadlineMillis: Long?,
+    onAddTask: () -> Unit,
     onOpenTaskList: () -> Unit,
+    onOpenExchange: () -> Unit,
+    onOpenSchedule: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
-        modifier = modifier,
-        topBar = { TopAppBar(title = { Text("ホーム") }) },
-    ) { padding ->
+    val total = doneCount + pendingCount
+    val progress = if (total == 0) 0f else doneCount.toFloat() / total
+
+    Scaffold(modifier = modifier) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            // ポイント残高
-            Card(
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = Neon.TextMain)) { append("STUDY") }
+                    withStyle(SpanStyle(color = Neon.Accent)) { append("REWARD") }
+                },
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                ),
-            ) {
-                Column(Modifier.padding(24.dp)) {
-                    Text("ポイント残高", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text("$pointsBalance pt", style = MaterialTheme.typography.displayMedium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "全部交換すると ${pointsBalance / 10 * 5} 分(10pt = 5分)",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 3.sp,
+            )
+
+            PointRing(
+                points = pointsBalance,
+                exchangeableMinutes = pointsBalance / 10 * 5,
+                progress = progress,
+            )
+
+            Text(text = "課題 完了 $doneCount / $total", color = Neon.TextSub, fontSize = 13.sp)
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Stat("未完了", pendingCount)
+                Stat("締切間近", dueSoonCount, highlight = dueSoonCount > 0)
+                Stat("完了", doneCount)
             }
 
-            // 課題の件数
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                CountCard("未完了", pendingCount, Modifier.weight(1f))
-                CountCard("締切が近い", dueSoonCount, Modifier.weight(1f))
-                CountCard("完了", doneCount, Modifier.weight(1f))
-            }
+            NextDeadlineCard(nextTaskTitle, nextDeadlineMillis)
 
-            Spacer(Modifier.weight(1f))
+            NeonButton(text = "課題を登録", onClick = onAddTask)
 
-            Button(
-                onClick = onOpenTaskList,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("課題一覧を見る")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                SubButton("課題一覧", onOpenTaskList)
+                SubButton("ポイント交換", onOpenExchange)
+                SubButton("時間割", onOpenSchedule)
             }
         }
     }
 }
 
 @Composable
-private fun CountCard(label: String, count: Int, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(Modifier.padding(16.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.height(4.dp))
-            Text("$count 件", style = MaterialTheme.typography.titleLarge)
+private fun PointRing(points: Int, exchangeableMinutes: Int, progress: Float) {
+    val animated by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 900),
+        label = "ring",
+    )
+
+    Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 12.dp.toPx()
+            val inset = stroke * 1.4f // 光の太い線が欠けない余白
+            val topLeft = Offset(inset, inset)
+            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
+
+            drawArc(
+                color = Neon.Track,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = stroke),
+            )
+            if (animated > 0f) {
+                drawArc( // 光のにじみ
+                    color = Neon.Accent.copy(alpha = 0.18f),
+                    startAngle = -90f,
+                    sweepAngle = 360f * animated,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = stroke * 2.2f, cap = StrokeCap.Round),
+                )
+                drawArc(
+                    color = Neon.Accent,
+                    startAngle = -90f,
+                    sweepAngle = 360f * animated,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("ポイント残高", color = Neon.TextSub, fontSize = 13.sp)
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(fontSize = 64.sp, fontWeight = FontWeight.Bold, color = Neon.TextMain)) {
+                        append("$points")
+                    }
+                    withStyle(SpanStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Neon.Accent)) {
+                        append(" pt")
+                    }
+                },
+            )
+            Text("交換すると ${exchangeableMinutes}分", color = Neon.TextSub, fontSize = 13.sp)
         }
     }
+}
+
+@Composable
+private fun Stat(label: String, count: Int, highlight: Boolean = false) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "$count",
+            color = if (highlight) Neon.Accent else Neon.TextMain,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(label, color = Neon.TextSub, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun NextDeadlineCard(title: String?, deadlineMillis: Long?) {
+    NeonPanel {
+        SectionLabel("次の締切")
+        if (title == null || deadlineMillis == null) {
+            Text("締切のある課題はありません", color = Neon.TextMain, fontSize = 16.sp)
+        } else {
+            val dateText = Instant.ofEpochMilli(deadlineMillis)
+                .atZone(ZoneId.systemDefault())
+                .format(deadlineFormatter)
+            Text(title, color = Neon.TextMain, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "$dateText ・ ${remainingLabel(deadlineMillis, System.currentTimeMillis())}",
+                color = Neon.Accent,
+                fontSize = 13.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SubButton(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(label, color = Neon.TextMain, fontSize = 14.sp)
+    }
+}
+
+private fun remainingLabel(deadlineMillis: Long, nowMillis: Long): String {
+    val hours = (deadlineMillis - nowMillis) / 3_600_000L
+    return if (hours < 24) "あと${maxOf(hours, 1L)}時間" else "あと${hours / 24}日"
 }
