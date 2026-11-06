@@ -10,7 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,7 +21,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +30,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.studyreward.data.entity.TaskEntity
+import com.example.studyreward.ui.common.NeonButton
+import com.example.studyreward.ui.common.NeonTopBar
+import com.example.studyreward.ui.common.SectionLabel
+import com.example.studyreward.ui.common.neonChipColors
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -38,12 +43,16 @@ import java.util.Locale
 import java.util.TimeZone
 
 private val difficultyLabels = mapOf(
-    1 to "1(かんたん)",
-    2 to "2(ふつう)",
-    3 to "3(むずかしい)",
+    1 to "簡単 10pt",
+    2 to "普通 20pt",
+    3 to "難しい 30pt",
 )
 
 /**
+ * 課題の「登録」と「編集」を兼ねる画面。
+ * - 登録: initial = null
+ * - 編集: initial に編集する課題を渡す(入力欄に今の値が入る)
+ *
  * @param onSave 引数は (課題名, 締切[端末の時刻での当日23:59のミリ秒。未設定はnull], 難易度1〜3)
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,12 +61,16 @@ fun TaskAddScreen(
     onBack: () -> Unit,
     onSave: (title: String, deadlineAtMillis: Long?, difficulty: Int) -> Unit,
     modifier: Modifier = Modifier,
+    initial: TaskEntity? = null,
 ) {
-    var title by remember { mutableStateOf("") }
-    var deadlineMillis by remember { mutableStateOf<Long?>(null) }
-    var difficulty by remember { mutableStateOf(2) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    val isEdit = initial != null
+    val isCompleted = initial?.completedAtMillis != null
+    val initialPickerMillis = initial?.deadlineAtMillis?.let(::toPickerMillis)
 
+    var title by remember { mutableStateOf(initial?.title ?: "") }
+    var deadlineMillis by remember { mutableStateOf(initialPickerMillis) }
+    var difficulty by remember { mutableStateOf(initial?.difficulty ?: 2) }
+    var showDatePicker by remember { mutableStateOf(false) }
     var titleError by remember { mutableStateOf<String?>(null) }
     var deadlineError by remember { mutableStateOf<String?>(null) }
     var difficultyError by remember { mutableStateOf<String?>(null) }
@@ -72,19 +85,13 @@ fun TaskAddScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("課題を登録") },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("戻る") }
-                },
-            )
-        },
+        topBar = { NeonTopBar(if (isEdit) "課題を編集" else "課題を登録", onBack) },
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
@@ -94,10 +101,10 @@ fun TaskAddScreen(
                     title = it
                     titleError = null
                 },
-                isError = titleError != null,
-                supportingText = titleError?.let { msg -> { Text(msg) } },
                 label = { Text("課題名") },
                 singleLine = true,
+                isError = titleError != null,
+                supportingText = titleError?.let { msg -> { Text(msg) } },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -121,7 +128,7 @@ fun TaskAddScreen(
             }
 
             Column {
-                Text("難易度", style = MaterialTheme.typography.titleSmall)
+                SectionLabel("難易度")
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     difficultyLabels.forEach { (level, label) ->
@@ -131,9 +138,20 @@ fun TaskAddScreen(
                                 difficulty = level
                                 difficultyError = null
                             },
+                            // 完了済みの課題はポイントが確定しているので難易度を変えられない
+                            enabled = !isCompleted,
                             label = { Text(label) },
+                            colors = neonChipColors(),
                         )
                     }
+                }
+                if (isCompleted) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "完了済みの課題は難易度を変更できません",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
 
@@ -143,20 +161,24 @@ fun TaskAddScreen(
 
             Spacer(Modifier.weight(1f))
 
-            Button(
+            NeonButton(
+                text = if (isEdit) "保存する" else "登録する",
                 onClick = {
-                    val deadlineAt = deadlineMillis?.let(::toDeadlineAtMillis)
+                    val picked = deadlineMillis
+                    val deadlineAt = when {
+                        picked == null -> null
+                        picked == initialPickerMillis -> initial?.deadlineAtMillis // 変えていなければそのまま
+                        else -> toDeadlineAtMillis(picked)
+                    }
                     titleError = validateTitle(title)
-                    deadlineError = validateDeadline(deadlineAt)
+                    // 編集で締切を変えていないときは、過去の締切でもエラーにしない
+                    deadlineError = if (picked != initialPickerMillis) validateDeadline(deadlineAt) else null
                     difficultyError = validateDifficulty(difficulty)
                     if (listOf(titleError, deadlineError, difficultyError).all { it == null }) {
                         onSave(title.trim(), deadlineAt, difficulty)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("登録する")
-            }
+            )
         }
     }
 
@@ -193,6 +215,15 @@ private fun toDeadlineAtMillis(pickerUtcMillis: Long): Long =
         .toLocalDate()
         .atTime(23, 59)
         .atZone(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
+
+// 保存済みの締切(端末時刻) → DatePicker が使う「その日の UTC 0時」
+private fun toPickerMillis(deadlineAtMillis: Long): Long =
+    Instant.ofEpochMilli(deadlineAtMillis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .atStartOfDay(ZoneOffset.UTC)
         .toInstant()
         .toEpochMilli()
 
