@@ -3,6 +3,7 @@ package com.example.studyreward
 import android.content.Context
 import com.example.studyreward.data.AppDatabase
 import com.example.studyreward.data.repository.AppLimitRepository
+import com.example.studyreward.data.repository.DateScheduleRepository
 import com.example.studyreward.data.repository.RewardRepository
 import com.example.studyreward.data.repository.ScheduleRepository
 import com.example.studyreward.data.repository.TaskRepository
@@ -32,5 +33,8 @@ class AppContainer(context: Context) {
     }
     val appLimitRepository: AppLimitRepository by lazy {
         AppLimitRepository(db, db.appLimitDao())
+    }
+    val dateScheduleRepository: DateScheduleRepository by lazy {
+        DateScheduleRepository(db.classScheduleDao(), db.dateScheduleDao())
     }
 }
