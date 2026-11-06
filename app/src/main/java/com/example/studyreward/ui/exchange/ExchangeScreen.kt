@@ -52,6 +52,7 @@ fun ExchangeScreen(
     var packageError by remember { mutableStateOf<String?>(null) }
     var pointsError by remember { mutableStateOf<String?>(null) }
 
+
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
