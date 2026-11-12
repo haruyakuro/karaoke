@@ -28,12 +28,15 @@ import com.example.studyreward.domain.task.CompleteTaskResult
 import com.example.studyreward.ui.common.Neon
 import com.example.studyreward.ui.common.NeonTheme
 import com.example.studyreward.ui.exchange.ExchangeScreen
+import com.example.studyreward.ui.permission.PermissionGuideScreen
+import com.example.studyreward.ui.schedule.DateScheduleAddScreen
 import com.example.studyreward.ui.schedule.ScheduleAddScreen
 import com.example.studyreward.ui.schedule.ScheduleScreen
 import com.example.studyreward.ui.home.HomeScreen
 import com.example.studyreward.ui.taskadd.TaskAddScreen
 import com.example.studyreward.ui.tasklist.TaskListScreen
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 object Routes {
     const val HOME = "home"
@@ -42,9 +45,14 @@ object Routes {
     const val EXCHANGE = "exchange"
     const val SCHEDULE = "schedule"
     const val SCHEDULE_ADD = "schedule_add"
+    const val DATE_SCHEDULE_ADD = "date_schedule_add?epochDay={epochDay}"
+    const val PERMISSION = "permission"
     const val TASK_EDIT = "task_edit/{taskId}"
 
     fun taskEdit(taskId: Long) = "task_edit/$taskId"
+
+    /** 日付指定の予定の登録画面。epochDay は日付の初期値(LocalDate.toEpochDay) */
+    fun dateScheduleAdd(epochDay: Long) = "date_schedule_add?epochDay=$epochDay"
 }
 
 private const val DUE_SOON_MILLIS = 48L * 60 * 60 * 1000
@@ -58,12 +66,15 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
     val rewardRepository = container.rewardRepository
     val scheduleRepository = container.scheduleRepository
     val appLimitRepository = container.appLimitRepository
+    val dateScheduleRepository = container.dateScheduleRepository
 
     val tasks by remember(taskRepository) { taskRepository.getAllTasks() }
         .collectAsState(initial = emptyList())
     val pointsBalance by remember(rewardRepository) { rewardRepository.getPointsBalance() }
         .collectAsState(initial = 0)
     val schedules by remember(scheduleRepository) { scheduleRepository.getAllSchedules() }
+        .collectAsState(initial = emptyList())
+    val dateSchedules by remember(dateScheduleRepository) { dateScheduleRepository.getAllDateSchedules() }
         .collectAsState(initial = emptyList())
     val appLimits by remember(appLimitRepository) { appLimitRepository.observeAllLimits() }
         .collectAsState(initial = emptyList())
@@ -117,6 +128,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenTaskList = { navController.navigate(Routes.TASK_LIST) },
                     onOpenExchange = { navController.navigate(Routes.EXCHANGE) },
                     onOpenSchedule = { navController.navigate(Routes.SCHEDULE) },
+                    onOpenPermission = { navController.navigate(Routes.PERMISSION) },
+                    // TODO(Dの修正後): limitedApps に対象アプリの残り時間を渡す(PR説明を参照)
                 )
             }
             composable(Routes.TASK_LIST) {
@@ -192,10 +205,16 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             composable(Routes.SCHEDULE) {
                 ScheduleScreen(
                     schedules = schedules,
-                    loadFreePeriods = { day -> scheduleRepository.getFreePeriods(day) },
+                    dateSchedules = dateSchedules,
+                    // 空きコマは日付ベース(土日・祝日の 8:00〜22:00 も出る)
+                    loadFreePeriods = { epochDay -> dateScheduleRepository.getFreePeriodsForDate(epochDay) },
                     onBack = { navController.popBackStack() },
                     onAddSchedule = { navController.navigate(Routes.SCHEDULE_ADD) },
+                    onAddDateSchedule = { epochDay -> navController.navigate(Routes.dateScheduleAdd(epochDay)) },
                     onDelete = { schedule -> scope.launch { scheduleRepository.deleteSchedule(schedule.id) } },
+                    onDeleteDateSchedule = { item ->
+                        scope.launch { dateScheduleRepository.deleteDateSchedule(item.id) }
+                    },
                 )
             }
             composable(Routes.SCHEDULE_ADD) {
@@ -203,6 +222,28 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onBack = { navController.popBackStack() },
                     onAdd = { scheduleRepository.addSchedule(it) },
                 )
+            }
+            composable(
+                route = Routes.DATE_SCHEDULE_ADD,
+                arguments = listOf(
+                    navArgument("epochDay") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+            ) { entry ->
+                val epochDay = entry.arguments?.getLong("epochDay") ?: -1L
+                val initialDate = remember(epochDay) {
+                    if (epochDay >= 0L) LocalDate.ofEpochDay(epochDay) else LocalDate.now()
+                }
+                DateScheduleAddScreen(
+                    initialDate = initialDate,
+                    onBack = { navController.popBackStack() },
+                    onAdd = { dateScheduleRepository.addDateSchedule(it) },
+                )
+            }
+            composable(Routes.PERMISSION) {
+                PermissionGuideScreen(onBack = { navController.popBackStack() })
             }
             composable(
                 route = Routes.TASK_EDIT,

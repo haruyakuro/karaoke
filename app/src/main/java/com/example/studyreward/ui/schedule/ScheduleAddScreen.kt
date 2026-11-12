@@ -142,7 +142,7 @@ fun ScheduleAddScreen(
 }
 
 // "9:10" → 550。形式が違えば null。値の範囲チェックは Repository 側(IllegalArgumentException)に任せる。
-private fun parseMinutes(text: String): Int? {
+internal fun parseMinutes(text: String): Int? {
     val match = Regex("""^(\d{1,2}):(\d{2})$""").matchEntire(text.trim()) ?: return null
     return match.groupValues[1].toInt() * 60 + match.groupValues[2].toInt()
 }
