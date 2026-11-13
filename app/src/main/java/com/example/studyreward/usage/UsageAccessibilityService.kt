@@ -101,6 +101,7 @@ class UsageAccessibilityService : AccessibilityService() {
 
             if (remainingSeconds != null && remainingSeconds <= 0L) {
 
+
                 Log.d(
                     TAG,
                     "Limit exceeded : $packageName"
