@@ -99,7 +99,8 @@ class UsageAccessibilityService : AccessibilityService() {
                 "Remaining seconds : $remainingSeconds"
             )
 
-            if (remainingSeconds <= 0L) {
+            if (remainingSeconds != null && remainingSeconds <= 0L) {
+
 
                 Log.d(
                     TAG,
