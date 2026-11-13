@@ -34,12 +34,22 @@ import com.example.studyreward.ui.common.Neon
 import com.example.studyreward.ui.common.NeonButton
 import com.example.studyreward.ui.common.NeonPanel
 import com.example.studyreward.ui.common.SectionLabel
+import com.example.studyreward.ui.common.appDisplayName
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val deadlineFormatter = DateTimeFormatter.ofPattern("M/d(E) HH:mm", Locale.JAPAN)
+
+/**
+ * ホームに出す、対象アプリ1つ分の残り時間。
+ * @param remainingSeconds 残り秒数。制限対象外なら null(「制限なし」と表示。SPEC.md 7章)
+ */
+data class AppRemaining(
+    val packageName: String,
+    val remainingSeconds: Long?,
+)
 
 @Composable
 fun HomeScreen(
@@ -54,6 +64,9 @@ fun HomeScreen(
     onOpenExchange: () -> Unit,
     onOpenSchedule: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenPermission: () -> Unit = {},
+    // 空のときは「アプリの残り時間」の欄を出さない
+    limitedApps: List<AppRemaining> = emptyList(),
 ) {
     val total = doneCount + pendingCount
     val progress = if (total == 0) 0f else doneCount.toFloat() / total
@@ -95,12 +108,17 @@ fun HomeScreen(
 
             NextDeadlineCard(nextTaskTitle, nextDeadlineMillis)
 
+            if (limitedApps.isNotEmpty()) {
+                RemainingTimeCard(limitedApps)
+            }
+
             NeonButton(text = "課題を登録", onClick = onAddTask)
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 SubButton("課題一覧", onOpenTaskList)
                 SubButton("ポイント交換", onOpenExchange)
                 SubButton("時間割", onOpenSchedule)
+                SubButton("権限", onOpenPermission)
             }
         }
     }
@@ -203,6 +221,34 @@ private fun NextDeadlineCard(title: String?, deadlineMillis: Long?) {
 }
 
 @Composable
+private fun RemainingTimeCard(apps: List<AppRemaining>) {
+    NeonPanel {
+        SectionLabel("アプリの残り時間(今日)")
+        apps.forEach { app ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    appDisplayName(app.packageName),
+                    color = Neon.TextMain,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                val seconds = app.remainingSeconds
+                Text(
+                    text = formatRemainingTime(seconds),
+                    color = if (seconds == null) Neon.TextSub else Neon.Accent,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SubButton(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick) {
         Text(label, color = Neon.TextMain, fontSize = 14.sp)
@@ -212,4 +258,17 @@ private fun SubButton(label: String, onClick: () -> Unit) {
 private fun remainingLabel(deadlineMillis: Long, nowMillis: Long): String {
     val hours = (deadlineMillis - nowMillis) / 3_600_000L
     return if (hours < 24) "あと${maxOf(hours, 1L)}時間" else "あと${hours / 24}日"
+}
+
+// 残り秒数 → 表示用の文字。null=制限なし、0以下=上限到達(負の値は0として扱う)
+internal fun formatRemainingTime(remainingSeconds: Long?): String {
+    if (remainingSeconds == null) return "制限なし"
+    if (remainingSeconds <= 0L) return "上限に達しました"
+    val hours = remainingSeconds / 3600
+    val minutes = (remainingSeconds % 3600) / 60
+    return when {
+        hours > 0 -> "あと${hours}時間${minutes}分"
+        minutes > 0 -> "あと${minutes}分"
+        else -> "あと1分未満"
+    }
 }

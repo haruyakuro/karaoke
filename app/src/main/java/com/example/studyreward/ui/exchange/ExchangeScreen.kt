@@ -28,6 +28,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.studyreward.data.entity.AppLimitEntity
+import com.example.studyreward.ui.common.appDisplayName
 import com.example.studyreward.ui.common.Neon
 import com.example.studyreward.ui.common.NeonButton
 import com.example.studyreward.ui.common.NeonPanel
@@ -47,11 +48,14 @@ fun ExchangeScreen(
     onExchange: (packageName: String, points: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var packageName by remember { mutableStateOf("") }
+    // 交換できるのは「登録済み かつ 制限が有効」なアプリだけ
+    val apps = remember(registeredApps) { registeredApps.filter { it.isEnabled } }
+    var selectedPackage by remember { mutableStateOf<String?>(null) }
+    // 未選択、または選んだアプリが対象外になったときは、先頭のアプリを選んでおく
+    val effectivePackage = apps.firstOrNull { it.packageName == selectedPackage }?.packageName
+        ?: apps.firstOrNull()?.packageName
     var pointsText by remember { mutableStateOf("10") }
-    var packageError by remember { mutableStateOf<String?>(null) }
     var pointsError by remember { mutableStateOf<String?>(null) }
-
 
     Scaffold(
         modifier = modifier,
@@ -83,41 +87,28 @@ fun ExchangeScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel("対象アプリ")
-                if (registeredApps.isEmpty()) {
+                if (apps.isEmpty()) {
                     Text(
-                        "利用制限の対象アプリがまだ登録されていません。",
+                        "交換できる対象アプリがありません。\n利用制限が有効なアプリだけ選べます。",
                         color = Neon.TextSub,
                         fontSize = 14.sp,
                     )
                 } else {
-                    registeredApps.forEach { app ->
+                    apps.forEach { app ->
                         FilterChip(
-                            selected = packageName == app.packageName,
-                            onClick = {
-                                packageName = app.packageName
-                                packageError = null
-                            },
+                            selected = effectivePackage == app.packageName,
+                            onClick = { selectedPackage = app.packageName },
                             label = {
-                                Text("${app.packageName}(上限 ${app.dailyLimitMinutes}分 + 追加 ${app.bonusMinutes}分)")
+                                Text(
+                                    "${appDisplayName(app.packageName)}" +
+                                            "(上限 ${app.dailyLimitMinutes}分 + 追加 ${app.bonusMinutes}分)"
+                                )
                             },
                             colors = neonChipColors(),
                         )
                     }
                 }
             }
-
-            OutlinedTextField(
-                value = packageName,
-                onValueChange = {
-                    packageName = it
-                    packageError = null
-                },
-                label = { Text("パッケージ名") },
-                singleLine = true,
-                isError = packageError != null,
-                supportingText = packageError?.let { msg -> { Text(msg) } },
-                modifier = Modifier.fillMaxWidth(),
-            )
 
             OutlinedTextField(
                 value = pointsText,
@@ -135,12 +126,12 @@ fun ExchangeScreen(
 
             NeonButton(
                 text = "交換する",
+                enabled = effectivePackage != null,
                 onClick = {
                     val points = pointsText.trim().toIntOrNull()
-                    packageError = if (packageName.isBlank()) "アプリを選ぶか、パッケージ名を入力してください" else null
                     pointsError = if (points == null) "数字で入力してください" else null
-                    if (packageError == null && points != null) {
-                        onExchange(packageName.trim(), points)
+                    if (effectivePackage != null && points != null) {
+                        onExchange(effectivePackage, points)
                     }
                 },
             )
